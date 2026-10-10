@@ -10,6 +10,7 @@ import BookmarksManager from './components/BookmarksManager';
 import PersonalNotesWidget from './components/PersonalNotesWidget';
 import ApplicationShortcuts from './components/ApplicationShortcuts';
 import HelpOverlays from './components/HelpOverlays';
+import { GoogleAppImage, resolveAppKey } from './components/BrandLogos';
 
 // Initial preloaded mock data to look full and beautiful instantly
 const INITIAL_BOOKMARKS: Bookmark[] = [
@@ -22,12 +23,18 @@ const INITIAL_BOOKMARKS: Bookmark[] = [
 ];
 
 const INITIAL_SHORTCUTS: QuickShortcut[] = [
-  { id: 'sc-1', title: 'Dev Code', url: 'https://github.com', iconName: 'code', color: 'bg-indigo-500/10 text-indigo-650 dark:bg-indigo-500/20 dark:text-indigo-300 border-indigo-205 dark:border-indigo-800' },
-  { id: 'sc-2', title: 'Gmail', url: 'https://mail.google.com', iconName: 'mail', color: 'bg-rose-500/10 text-rose-600 dark:bg-rose-500/20 dark:text-rose-300 border-rose-202 dark:border-rose-800' },
-  { id: 'sc-3', title: 'Explore maps', url: 'https://maps.google.com', iconName: 'compass', color: 'bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-300 border-emerald-202 dark:border-emerald-800' },
-  { id: 'sc-4', title: 'Node Terminal', url: 'https://npmjs.com', iconName: 'terminal', color: 'bg-violet-500/10 text-violet-600 dark:bg-violet-500/20 dark:text-violet-300 border-violet-202 dark:border-violet-800' },
-  { id: 'sc-5', title: 'Interactive Chat', url: 'https://chat.openai.com', iconName: 'chat', color: 'bg-sky-500/10 text-sky-600 dark:bg-sky-500/20 dark:text-sky-300 border-sky-202 dark:border-sky-800' },
-  { id: 'sc-6', title: 'Tech Stack', url: 'https://wikipedia.org', iconName: 'layers', color: 'bg-orange-500/10 text-orange-600 dark:bg-orange-500/20 dark:text-orange-300 border-orange-202 dark:border-orange-850' },
+  { id: 'sc-1', title: 'Account', url: 'https://myaccount.google.com', iconName: 'account', color: 'transparent' },
+  { id: 'sc-2', title: 'Drive', url: 'https://drive.google.com', iconName: 'drive', color: 'transparent' },
+  { id: 'sc-3', title: 'Gmail', url: 'https://mail.google.com', iconName: 'gmail', color: 'transparent' },
+  { id: 'sc-4', title: 'YouTube', url: 'https://youtube.com', iconName: 'youtube', color: 'transparent' },
+  { id: 'sc-5', title: 'Gemini', url: 'https://gemini.google.com', iconName: 'gemini', color: 'transparent' },
+  { id: 'sc-6', title: 'Maps', url: 'https://maps.google.com', iconName: 'maps', color: 'transparent' },
+  { id: 'sc-7', title: 'Search', url: 'https://google.com', iconName: 'search', color: 'transparent' },
+  { id: 'sc-8', title: 'Calendar', url: 'https://calendar.google.com', iconName: 'calendar', color: 'transparent' },
+  { id: 'sc-9', title: 'News', url: 'https://news.google.com', iconName: 'news', color: 'transparent' },
+  { id: 'sc-10', title: 'Photos', url: 'https://photos.google.com', iconName: 'photos', color: 'transparent' },
+  { id: 'sc-11', title: 'Meet', url: 'https://meet.google.com', iconName: 'meet', color: 'transparent' },
+  { id: 'sc-12', title: 'Translate', url: 'https://translate.google.com', iconName: 'translate', color: 'transparent' },
 ];
 
 const INITIAL_NOTES: Note[] = [
@@ -53,21 +60,37 @@ Tailwind Docs:
 ];
 
 export default function App() {
-  // Dark Mode
+  // Dark Mode - default to true for sleek black theme
   const [darkMode, setDarkMode] = useState(() => {
+    const blackThemeMigrated = localStorage.getItem('homepage_black_bg_migrated');
+    if (!blackThemeMigrated) {
+      localStorage.setItem('homepage_black_bg_migrated', 'true');
+      localStorage.setItem('homepage_dark_mode', 'true');
+      return true;
+    }
     const saved = localStorage.getItem('homepage_dark_mode');
-    return saved === 'true' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    return saved === null ? true : saved === 'true';
   });
 
   // Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
+    const blackThemeMigrated = localStorage.getItem('homepage_black_bg_migrated');
     const saved = localStorage.getItem('homepage_config_settings');
-    return saved ? JSON.parse(saved) : {
+    let initialSettings: AppSettings = {
       accentColor: 'indigo',
-      bgStyle: 'mesh',
+      bgStyle: 'solid',
       searchProvider: 'google',
       useCelsius: true
     };
+    if (saved) {
+      try {
+        initialSettings = { ...initialSettings, ...JSON.parse(saved) };
+      } catch {}
+    }
+    if (!blackThemeMigrated) {
+      initialSettings.bgStyle = 'solid';
+    }
+    return initialSettings;
   });
 
   // Widgets Visibility
@@ -92,8 +115,39 @@ export default function App() {
   });
 
   const [shortcuts, setShortcuts] = useState<QuickShortcut[]>(() => {
+    const migrated = localStorage.getItem('homepage_shortcuts_google_v4');
+    if (!migrated) {
+      localStorage.setItem('homepage_shortcuts_google_v4', 'true');
+      const saved = localStorage.getItem('homepage_user_shortcuts');
+      if (saved) {
+        try {
+          const parsed: QuickShortcut[] = JSON.parse(saved);
+          const repaired = parsed.map(s => {
+            if (s.iconName === 'search' && !s.url.includes('google.com/search') && s.url !== 'https://google.com') {
+              return { ...s, iconName: resolveAppKey('', s.title, s.url) };
+            }
+            return s;
+          });
+          localStorage.setItem('homepage_user_shortcuts', JSON.stringify(repaired));
+          return repaired;
+        } catch {}
+      }
+      localStorage.setItem('homepage_user_shortcuts', JSON.stringify(INITIAL_SHORTCUTS));
+      return INITIAL_SHORTCUTS;
+    }
     const saved = localStorage.getItem('homepage_user_shortcuts');
-    return saved ? JSON.parse(saved) : INITIAL_SHORTCUTS;
+    if (saved) {
+      try {
+        const parsed: QuickShortcut[] = JSON.parse(saved);
+        return parsed.map(s => {
+          if (s.iconName === 'search' && !s.url.includes('google.com/search') && s.url !== 'https://google.com') {
+            return { ...s, iconName: resolveAppKey('', s.title, s.url) };
+          }
+          return s;
+        });
+      } catch {}
+    }
+    return INITIAL_SHORTCUTS;
   });
 
   const [notes, setNotes] = useState<Note[]>(() => {
@@ -214,7 +268,7 @@ export default function App() {
       });
       setSettings({
         accentColor: 'indigo',
-        bgStyle: 'mesh',
+        bgStyle: 'solid',
         searchProvider: 'google',
         useCelsius: true
       });
@@ -231,15 +285,7 @@ export default function App() {
   };
 
   const bgGradientSelection = () => {
-    if (darkMode) {
-      if (settings.bgStyle === 'gradient') return 'bg-gradient-to-tr from-zinc-950 via-zinc-900 to-indigo-950/40';
-      if (settings.bgStyle === 'mesh') return 'bg-gradient-to-tr from-zinc-950 via-zinc-900 to-zinc-950 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-950/20 via-zinc-900 to-zinc-950';
-      return 'bg-zinc-950';
-    } else {
-      if (settings.bgStyle === 'gradient') return 'bg-gradient-to-tr from-zinc-50 via-zinc-100 to-indigo-50/40';
-      if (settings.bgStyle === 'mesh') return 'bg-gradient-to-tr from-zinc-50 via-slate-100/80 to-zinc-50 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-100/30 via-slate-50 to-zinc-50';
-      return 'bg-zinc-50';
-    }
+    return 'bg-black';
   };
 
   return (
@@ -247,23 +293,27 @@ export default function App() {
       id="homepage-main-container" 
       className={`min-h-screen ${bgGradientSelection()} transition-colors duration-500 text-zinc-800 dark:text-zinc-100 font-sans flex flex-col relative pb-16 pt-6 px-4 md:px-8 overflow-hidden`}
     >
-      {/* Animated Mesh blurred glows */}
-      <div className="absolute top-[-150px] left-[-150px] w-[500px] h-[500px] bg-indigo-500/10 dark:bg-purple-900/15 rounded-full blur-[110px] pointer-events-none animate-float-slow z-0"></div>
-      <div className="absolute bottom-[-150px] right-[-150px] w-[600px] h-[600px] bg-pink-500/10 dark:bg-blue-900/15 rounded-full blur-[140px] pointer-events-none animate-float-medium z-0"></div>
-      <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-purple-500/5 dark:bg-indigo-500/5 rounded-full blur-[90px] pointer-events-none animate-float-fast z-0"></div>
+      {/* Animated Mesh blurred glows - enabled when mesh style is selected */}
+      {settings.bgStyle === 'mesh' && (
+        <>
+          <div className="absolute top-[-150px] left-[-150px] w-[500px] h-[500px] bg-indigo-500/10 dark:bg-purple-900/15 rounded-full blur-[110px] pointer-events-none animate-float-slow z-0"></div>
+          <div className="absolute bottom-[-150px] right-[-150px] w-[600px] h-[600px] bg-pink-500/10 dark:bg-blue-900/15 rounded-full blur-[140px] pointer-events-none animate-float-medium z-0"></div>
+          <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-purple-500/5 dark:bg-indigo-500/5 rounded-full blur-[90px] pointer-events-none animate-float-fast z-0"></div>
+        </>
+      )}
 
       {/* Top Header controls */}
       <header id="dashboard-navbar-header" className="max-w-7xl w-full mx-auto flex items-center justify-between mb-8 z-30">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-indigo-500 dark:bg-indigo-600 flex items-center justify-center text-white shadow-md">
-            <LayoutGrid className="w-4 h-4" />
+          <div className="w-10 h-10 rounded-2xl bg-zinc-900/90 border border-white/10 flex items-center justify-center text-white shadow-lg shadow-black/40 hover:border-white/20 transition-all cursor-pointer">
+            <GoogleAppImage name="gemini" title="Google Gemini" className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-sm font-bold font-display tracking-wide uppercase text-zinc-800 dark:text-zinc-200">
-              Start Tab
+            <h1 className="text-sm font-bold font-display tracking-wide uppercase text-zinc-100 flex items-center gap-2">
+              <span>Google Apps</span>
             </h1>
             <p className="text-[9px] font-mono text-zinc-400 mt-0.5 select-none">
-              LOCAL PERSISTENT HOME
+              WORKSPACE & BROWSER DASHBOARD
             </p>
           </div>
         </div>
@@ -347,28 +397,15 @@ export default function App() {
 
             {/* Column 2: Dashboard Themes */}
             <div>
-              <p className="text-[11px] font-bold font-mono uppercase tracking-wider text-zinc-451 dark:text-zinc-400 mb-2.5">
-                Color Canvas Backdrop
+              <p className="text-[11px] font-bold font-mono uppercase tracking-wider text-zinc-400 mb-2.5">
+                Dashboard Canvas Background
               </p>
-              <div id="settings-canvas-styles" className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'solid', name: 'Solid Slate' },
-                  { id: 'gradient', name: 'Ambient' },
-                  { id: 'mesh', name: 'Glass Mesh' },
-                ].map(style => (
-                  <button
-                    key={style.id}
-                    id={`style-config-btn-${style.id}`}
-                    onClick={() => setSettings({ ...settings, bgStyle: style.id })}
-                    className={`text-xs p-2.5 rounded-xl border font-semibold select-none text-center cursor-pointer capitalize ${
-                      settings.bgStyle === style.id
-                        ? 'bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 border-transparent shadow'
-                        : 'bg-white dark:bg-zinc-900 text-zinc-650 dark:text-zinc-450 border-zinc-200 dark:border-zinc-800'
-                    }`}
-                  >
-                    {style.name}
-                  </button>
-                ))}
+              <div id="settings-canvas-styles" className="p-3 rounded-2xl bg-black border border-white/10 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
+                  <span className="text-xs font-semibold text-zinc-200">Pitch Black (Permanent Default)</span>
+                </div>
+                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Locked</span>
               </div>
 
               {/* Accent Color Palettes */}

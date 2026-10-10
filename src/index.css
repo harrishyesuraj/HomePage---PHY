@@ -7,6 +7,12 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+html, body {
+  background-color: #000000;
+  color: #f4f4f5;
+  min-height: 100%;
+}
+
 /* Custom gorgeous styling utilities for Frosted Glass theme */
 @layer utilities {
   .glass-panel {
