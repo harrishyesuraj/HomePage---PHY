@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FileText, Plus, Trash2, Edit2, Check, Copy, Save, Sparkles, Pin 
+  FileText, Plus, Trash2, Edit2, Check, Copy, Save, Sparkles, Pin, Cloud
 } from 'lucide-react';
 import { Note } from '../types';
 
@@ -78,14 +78,18 @@ export default function PersonalNotesWidget({
   return (
     <div 
       id="notes-widget-card" 
-      className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-zinc-200/50 dark:border-white/10 rounded-3xl p-5 shadow-lg flex flex-col h-[380px] transition-all duration-300 hover:shadow-xl hover:border-zinc-300/50 dark:hover:border-white/15"
+      className="card-glass-panel border rounded-3xl p-5 shadow-lg flex flex-col h-full min-h-[460px] transition-all duration-300 hover:shadow-2xl hover:border-white/30"
     >
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <div className="flex items-center gap-1.5 text-zinc-450 dark:text-zinc-455">
-          <FileText className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-sans">
-            Personal Notes & Clipboard
+        <div className="flex items-center gap-1.5 text-zinc-400">
+          <FileText className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-400 font-sans">
+            Notes & Clipboard
           </h3>
+          <span className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+            <Check className="w-2.5 h-2.5" />
+            Backend Sync
+          </span>
         </div>
 
         <button

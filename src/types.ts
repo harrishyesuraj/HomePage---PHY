@@ -3,6 +3,7 @@ export interface Bookmark {
   title: string;
   url: string;
   category: string;
+  folder?: string; // Subfolder path inside category, e.g. "Work/Projects" or "Designs"
   createdAt: number;
 }
 
@@ -47,9 +48,25 @@ export interface WidgetVisibility {
   clock: boolean;
 }
 
+export interface WallpaperConfig {
+  type: 'preset' | 'custom-url' | 'upload' | 'solid' | 'gradient';
+  value: string; // URL, data URL, hex color, or CSS gradient
+  name: string;
+  blur: number; // 0 to 24 px
+  dim: number; // 0 to 85 % overlay dimming
+}
+
+export interface GlassEffectConfig {
+  transparency: number; // 5 to 70 (opacity percent)
+  blur: 'none' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
+  borderGlow: boolean;
+}
+
 export interface AppSettings {
-  accentColor: string; // 'blue' | 'emerald' | 'violet' | 'rose' | 'amber' | 'neutral'
+  accentColor: string; // 'indigo' | 'emerald' | 'violet' | 'rose' | 'amber'
   bgStyle: string; // 'solid' | 'gradient' | 'glass' | 'mesh'
   searchProvider: 'google' | 'duckduckgo' | 'bing' | 'github';
   useCelsius: boolean;
+  wallpaper?: WallpaperConfig;
+  glass?: GlassEffectConfig;
 }

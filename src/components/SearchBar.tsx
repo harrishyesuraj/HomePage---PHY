@@ -131,10 +131,10 @@ export default function SearchBar({
   return (
     <div id="search-bar-container" className="relative w-full max-w-2xl mx-auto z-40">
       <div 
-        className={`flex items-center gap-3 px-4 py-3.5 bg-white/40 dark:bg-white/6 backdrop-blur-xl border rounded-2xl shadow-sm transition-all duration-300 ${
+        className={`flex items-center gap-3 px-4 py-3.5 card-glass-panel border rounded-2xl shadow-lg transition-all duration-300 ${
           isFocused 
-            ? 'border-indigo-500/50 dark:border-indigo-400/50 ring-2 ring-indigo-500/10 dark:ring-indigo-400/15 shadow-lg scale-[1.01]' 
-            : 'border-zinc-200/50 dark:border-white/10'
+            ? 'border-indigo-500/50 dark:border-indigo-400/50 ring-2 ring-indigo-500/10 dark:ring-indigo-400/15 shadow-xl scale-[1.01]' 
+            : ''
         }`}
       >
         <div className="flex items-center gap-2">
@@ -220,13 +220,6 @@ export default function SearchBar({
             </button>
           ))}
         </div>
-      )}
-
-      {/* Subtle indicator hint */}
-      {!isFocused && (
-        <p className="text-center mt-2.5 text-[10px] text-zinc-400/80 dark:text-zinc-500/80 tracking-wide font-mono select-none">
-          Press <span className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-500 select-none">/</span> or <span className="bg-zinc-100 dark:bg-zinc-800 px-1 py-0.5 rounded text-zinc-500 select-none">S</span> to focus search
-        </p>
       )}
     </div>
   );

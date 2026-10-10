@@ -1,16 +1,19 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sun, Moon, LayoutGrid, RotateCcw, Clock as ClockIcon, Keyboard, Eye, 
-  EyeOff, Sliders, ChevronDown, Monitor, Sparkles, Settings2, Trash2 
+  EyeOff, Sliders, ChevronDown, Monitor, Sparkles, Settings2, Trash2,
+  Image as ImageIcon, Droplets, Palette
 } from 'lucide-react';
-import { Note, Bookmark, QuickShortcut, AppSettings, WidgetVisibility } from './types';
+import { Note, Bookmark, QuickShortcut, AppSettings, WidgetVisibility, WallpaperConfig, GlassEffectConfig } from './types';
 import SearchBar from './components/SearchBar';
 import WeatherWidget from './components/WeatherWidget';
 import BookmarksManager from './components/BookmarksManager';
 import PersonalNotesWidget from './components/PersonalNotesWidget';
 import ApplicationShortcuts from './components/ApplicationShortcuts';
 import HelpOverlays from './components/HelpOverlays';
-import { GoogleAppImage, resolveAppKey } from './components/BrandLogos';
+import GeneralSettingsModal from './components/GeneralSettingsModal';
+import { DEFAULT_WALLPAPER, DEFAULT_GLASS } from './data/wallpapers';
+import { resolveAppKey } from './components/BrandLogos';
 
 // Initial preloaded mock data to look full and beautiful instantly
 const INITIAL_BOOKMARKS: Bookmark[] = [
@@ -74,21 +77,25 @@ export default function App() {
 
   // Settings
   const [settings, setSettings] = useState<AppSettings>(() => {
-    const blackThemeMigrated = localStorage.getItem('homepage_black_bg_migrated');
     const saved = localStorage.getItem('homepage_config_settings');
     let initialSettings: AppSettings = {
       accentColor: 'indigo',
-      bgStyle: 'solid',
+      bgStyle: 'wallpaper',
       searchProvider: 'google',
-      useCelsius: true
+      useCelsius: true,
+      wallpaper: DEFAULT_WALLPAPER,
+      glass: DEFAULT_GLASS,
     };
     if (saved) {
       try {
-        initialSettings = { ...initialSettings, ...JSON.parse(saved) };
+        const parsed = JSON.parse(saved);
+        initialSettings = { 
+          ...initialSettings, 
+          ...parsed,
+          wallpaper: parsed.wallpaper || DEFAULT_WALLPAPER,
+          glass: parsed.glass || DEFAULT_GLASS,
+        };
       } catch {}
-    }
-    if (!blackThemeMigrated) {
-      initialSettings.bgStyle = 'solid';
     }
     return initialSettings;
   });
@@ -156,7 +163,26 @@ export default function App() {
   });
 
   const [showConfigSettingsPanel, setShowConfigSettingsPanel] = useState(false);
+  const [isGeneralSettingsOpen, setIsGeneralSettingsOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+
+  // Keyboard shortcut ',' to open settings
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput = activeEl && (
+        activeEl.tagName === 'INPUT' || 
+        activeEl.tagName === 'TEXTAREA' || 
+        activeEl.getAttribute('contenteditable') === 'true'
+      );
+      if (!isInput && e.key === ',') {
+        e.preventDefault();
+        setIsGeneralSettingsOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Time ticks
   useEffect(() => {
@@ -191,17 +217,41 @@ export default function App() {
     localStorage.setItem('homepage_user_shortcuts', JSON.stringify(shortcuts));
   }, [shortcuts]);
 
+  // Fetch notes from backend disk on mount so notes are always there whenever user opens
+  useEffect(() => {
+    fetch('/api/notes')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && Array.isArray(data.notes) && data.notes.length > 0) {
+          setNotes(data.notes);
+          localStorage.setItem('homepage_user_notes', JSON.stringify(data.notes));
+        }
+      })
+      .catch(err => {
+        console.warn('Backend notes fetch error, using local fallback:', err);
+      });
+  }, []);
+
   useEffect(() => {
     localStorage.setItem('homepage_user_notes', JSON.stringify(notes));
+    // Persist to backend server
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes }),
+    }).catch(err => {
+      console.warn('Backend notes save error:', err);
+    });
   }, [notes]);
 
   // Bookmarks handlers
-  const handleAddBookmark = (title: string, url: string, category: string) => {
+  const handleAddBookmark = (title: string, url: string, category: string, folder?: string) => {
     const newBookmark: Bookmark = {
       id: `bm-${Date.now()}`,
       title,
       url,
       category,
+      folder: folder || undefined,
       createdAt: Date.now()
     };
     setBookmarks(prev => [newBookmark, ...prev]);
@@ -209,6 +259,37 @@ export default function App() {
 
   const handleDeleteBookmark = (id: string) => {
     setBookmarks(prev => prev.filter(b => b.id !== id));
+  };
+
+  const handleDeleteMultipleBookmarks = (ids: string[]) => {
+    const idSet = new Set(ids);
+    setBookmarks(prev => prev.filter(b => !idSet.has(b.id)));
+  };
+
+  const handleDeleteAllBookmarks = () => {
+    setBookmarks([]);
+  };
+
+  const handleRenameCategory = (oldCategory: string, newCategory: string) => {
+    if (!newCategory.trim() || oldCategory === newCategory) return;
+    setBookmarks(prev => prev.map(b => b.category === oldCategory ? { ...b, category: newCategory.trim() } : b));
+  };
+
+  const handleRenameFolder = (category: string, oldFolder: string, newFolder: string) => {
+    if (!newFolder.trim() || oldFolder === newFolder) return;
+    setBookmarks(prev => prev.map(b => (b.category === category && b.folder === oldFolder) ? { ...b, folder: newFolder.trim() } : b));
+  };
+
+  const handleDeleteFolder = (category: string, folder: string) => {
+    setBookmarks(prev => prev.filter(b => !(b.category === category && b.folder === folder)));
+  };
+
+  const handleImportBookmarks = (newBookmarks: Bookmark[]) => {
+    setBookmarks(prev => {
+      const existingUrls = new Set(prev.map(b => b.url.toLowerCase()));
+      const filtered = newBookmarks.filter(b => !existingUrls.has(b.url.toLowerCase()));
+      return [...filtered, ...prev];
+    });
   };
 
   // Shortcuts handlers
@@ -254,94 +335,206 @@ export default function App() {
     }));
   };
 
-  const resetAllToDefaults = () => {
-    if (confirm('Are you certain you wish to reset all bookmarks, shortcuts, and notes back to defaults?')) {
-      setBookmarks(INITIAL_BOOKMARKS);
-      setShortcuts(INITIAL_SHORTCUTS);
-      setNotes(INITIAL_NOTES);
-      setWidgets({
-        weather: true,
-        bookmarks: true,
-        notes: true,
-        quickLinks: true,
-        clock: true
-      });
-      setSettings({
-        accentColor: 'indigo',
-        bgStyle: 'solid',
-        searchProvider: 'google',
-        useCelsius: true
-      });
-    }
+  // Dedicated Reset Handlers (Immune to browser iframe dialog blocking)
+  const handleResetBookmarks = () => {
+    setBookmarks(INITIAL_BOOKMARKS);
+    localStorage.setItem('homepage_user_bookmarks', JSON.stringify(INITIAL_BOOKMARKS));
   };
 
-  // Background visual config mapping
-  const ACCENT_BG_CLASSES: Record<string, string> = {
-    indigo: 'text-indigo-500 dark:text-indigo-400 focus:border-indigo-505',
-    emerald: 'text-emerald-500 dark:text-emerald-400 focus:border-emerald-555',
-    violet: 'text-violet-500 dark:text-violet-400 focus:border-violet-555',
-    rose: 'text-rose-500 dark:text-rose-400 focus:border-rose-555',
-    amber: 'text-amber-500 dark:text-amber-400 focus:border-amber-555',
+  const handleClearAllBookmarks = () => {
+    setBookmarks([]);
+    localStorage.setItem('homepage_user_bookmarks', JSON.stringify([]));
   };
 
-  const bgGradientSelection = () => {
-    return 'bg-black';
+  const handleResetNotes = () => {
+    setNotes(INITIAL_NOTES);
+    localStorage.setItem('homepage_user_notes', JSON.stringify(INITIAL_NOTES));
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: INITIAL_NOTES }),
+    }).catch(err => console.warn('Failed to sync reset notes to server:', err));
   };
+
+  const handleResetShortcuts = () => {
+    setShortcuts(INITIAL_SHORTCUTS);
+    localStorage.setItem('homepage_user_shortcuts', JSON.stringify(INITIAL_SHORTCUTS));
+    localStorage.setItem('homepage_shortcuts_google_v4', 'true');
+  };
+
+  const handleResetAppearance = () => {
+    setSettings(prev => ({
+      ...prev,
+      accentColor: 'indigo',
+      bgStyle: 'wallpaper',
+      wallpaper: DEFAULT_WALLPAPER,
+      glass: DEFAULT_GLASS,
+    }));
+    setDarkMode(true);
+    localStorage.setItem('homepage_dark_mode', 'true');
+  };
+
+  const handleResetWidgets = () => {
+    const defaultWidgets: WidgetVisibility = {
+      weather: true,
+      bookmarks: true,
+      notes: true,
+      quickLinks: true,
+      clock: true,
+    };
+    setWidgets(defaultWidgets);
+    setSettings(prev => ({
+      ...prev,
+      searchProvider: 'google',
+      useCelsius: true,
+    }));
+    localStorage.setItem('homepage_widgets_visibility', JSON.stringify(defaultWidgets));
+  };
+
+  const handleMasterReset = () => {
+    const defaultWidgets: WidgetVisibility = {
+      weather: true,
+      bookmarks: true,
+      notes: true,
+      quickLinks: true,
+      clock: true,
+    };
+    const defaultSettings: AppSettings = {
+      accentColor: 'indigo',
+      bgStyle: 'wallpaper',
+      searchProvider: 'google',
+      useCelsius: true,
+      wallpaper: DEFAULT_WALLPAPER,
+      glass: DEFAULT_GLASS,
+    };
+    setBookmarks(INITIAL_BOOKMARKS);
+    setShortcuts(INITIAL_SHORTCUTS);
+    setNotes(INITIAL_NOTES);
+    setWidgets(defaultWidgets);
+    setSettings(defaultSettings);
+    setDarkMode(true);
+
+    localStorage.setItem('homepage_user_bookmarks', JSON.stringify(INITIAL_BOOKMARKS));
+    localStorage.setItem('homepage_user_shortcuts', JSON.stringify(INITIAL_SHORTCUTS));
+    localStorage.setItem('homepage_user_notes', JSON.stringify(INITIAL_NOTES));
+    localStorage.setItem('homepage_widgets_visibility', JSON.stringify(defaultWidgets));
+    localStorage.setItem('homepage_config_settings', JSON.stringify(defaultSettings));
+    localStorage.setItem('homepage_dark_mode', 'true');
+    localStorage.setItem('homepage_shortcuts_google_v4', 'true');
+
+    fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notes: INITIAL_NOTES }),
+    }).catch(err => console.warn('Failed to sync master reset notes:', err));
+  };
+
+  const currentWallpaper = settings.wallpaper || DEFAULT_WALLPAPER;
+  const currentGlass = settings.glass || DEFAULT_GLASS;
+  const cardTransparency = (currentGlass.transparency ?? 25) / 100;
+  const cardBlurValue = 
+    currentGlass.blur === 'none' ? 'none' :
+    currentGlass.blur === 'sm' ? 'blur(8px)' :
+    currentGlass.blur === 'md' ? 'blur(16px)' :
+    currentGlass.blur === 'lg' ? 'blur(20px)' :
+    currentGlass.blur === 'xl' ? 'blur(24px)' :
+    currentGlass.blur === '2xl' ? 'blur(32px)' : 'blur(40px)';
+
+  const cardBorderDark = currentGlass.borderGlow 
+    ? 'rgba(255, 255, 255, 0.22)' 
+    : 'rgba(255, 255, 255, 0.10)';
+  const cardBorderLight = currentGlass.borderGlow 
+    ? 'rgba(255, 255, 255, 0.65)' 
+    : 'rgba(0, 0, 0, 0.08)';
 
   return (
     <div 
       id="homepage-main-container" 
-      className={`min-h-screen ${bgGradientSelection()} transition-colors duration-500 text-zinc-800 dark:text-zinc-100 font-sans flex flex-col relative pb-16 pt-6 px-4 md:px-8 overflow-hidden`}
+      style={{
+        '--card-glass-bg-dark': `rgba(8, 10, 16, ${cardTransparency})`,
+        '--card-glass-bg-light': `rgba(255, 255, 255, ${Math.min(0.85, cardTransparency + 0.15)})`,
+        '--card-glass-blur': cardBlurValue,
+        '--card-glass-border': cardBorderDark,
+        '--card-glass-border-light': cardBorderLight,
+      } as React.CSSProperties}
+      className="min-h-screen transition-colors duration-500 text-zinc-800 dark:text-zinc-100 font-sans flex flex-col relative pb-16 pt-6 px-4 md:px-8 overflow-hidden bg-black"
     >
-      {/* Animated Mesh blurred glows - enabled when mesh style is selected */}
-      {settings.bgStyle === 'mesh' && (
-        <>
-          <div className="absolute top-[-150px] left-[-150px] w-[500px] h-[500px] bg-indigo-500/10 dark:bg-purple-900/15 rounded-full blur-[110px] pointer-events-none animate-float-slow z-0"></div>
-          <div className="absolute bottom-[-150px] right-[-150px] w-[600px] h-[600px] bg-pink-500/10 dark:bg-blue-900/15 rounded-full blur-[140px] pointer-events-none animate-float-medium z-0"></div>
-          <div className="absolute top-1/3 left-1/3 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-purple-500/5 dark:bg-indigo-500/5 rounded-full blur-[90px] pointer-events-none animate-float-fast z-0"></div>
-        </>
-      )}
+      {/* Background Wallpaper Layer with Live Blur and Dimming */}
+      <div 
+        id="dashboard-wallpaper-layer"
+        className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none"
+        aria-hidden="true"
+      >
+        {currentWallpaper.type === 'solid' ? (
+          <div 
+            className="absolute inset-0 transition-colors duration-700" 
+            style={{ backgroundColor: currentWallpaper.value }}
+          />
+        ) : currentWallpaper.type === 'gradient' ? (
+          <div 
+            className="absolute inset-0 transition-all duration-700" 
+            style={{ background: currentWallpaper.value }}
+          />
+        ) : (
+          <div 
+            className="absolute -inset-8 transition-all duration-700 bg-cover bg-center"
+            style={{
+              backgroundImage: `url(${currentWallpaper.value})`,
+              filter: `blur(${currentWallpaper.blur ?? 0}px)`,
+              transform: 'scale(1.05)',
+            }}
+          />
+        )}
+
+        {/* Dynamic dimming overlay to guarantee crystal clear text contrast */}
+        <div 
+          className="absolute inset-0 bg-black transition-opacity duration-500"
+          style={{ opacity: (currentWallpaper.dim ?? 30) / 100 }}
+        />
+      </div>
 
       {/* Top Header controls */}
-      <header id="dashboard-navbar-header" className="max-w-7xl w-full mx-auto flex items-center justify-between mb-8 z-30">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-zinc-900/90 border border-white/10 flex items-center justify-center text-white shadow-lg shadow-black/40 hover:border-white/20 transition-all cursor-pointer">
-            <GoogleAppImage name="gemini" title="Google Gemini" className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold font-display tracking-wide uppercase text-zinc-100 flex items-center gap-2">
-              <span>Google Apps</span>
-            </h1>
-            <p className="text-[9px] font-mono text-zinc-400 mt-0.5 select-none">
-              WORKSPACE & BROWSER DASHBOARD
-            </p>
-          </div>
+      <header id="dashboard-navbar-header" className="max-w-7xl w-full mx-auto flex items-center justify-between mb-6 z-30">
+        <div className="flex items-center gap-2">
+          {/* Quick Active Wallpaper Badge */}
+          <button
+            onClick={() => setIsGeneralSettingsOpen(true)}
+            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl card-glass-panel border text-xs font-medium text-zinc-300 hover:text-white transition-all cursor-pointer hover:border-white/30"
+            title="Click to change wallpaper"
+          >
+            <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="truncate max-w-[140px]">{currentWallpaper.name}</span>
+            <span className="text-[10px] font-mono text-zinc-400 bg-white/10 px-1.5 py-0.2 rounded">
+              {currentGlass.transparency}% Glass
+            </span>
+          </button>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Quick Config Drawer Toggle */}
+          {/* General Settings Button for the Whole Page */}
+          <button
+            id="general-settings-open-btn"
+            onClick={() => setIsGeneralSettingsOpen(true)}
+            className="p-1.5 px-3 rounded-xl card-glass-panel border flex items-center gap-1.5 text-xs font-semibold select-none transition-all cursor-pointer z-30 text-zinc-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:border-white/30"
+            title="Open General Settings: Change Wallpaper, Card Transparency & Blur"
+          >
+            <Sliders className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+            <span className="font-sans">General Settings</span>
+          </button>
+
+          {/* Quick Preferences Toggle */}
           <button
             id="widgets-config-panel-toggle"
             onClick={() => setShowConfigSettingsPanel(!showConfigSettingsPanel)}
-            className={`p-1.5 rounded-xl border flex items-center gap-1 text-xs font-semibold select-none transition-all cursor-pointer z-30 ${
+            className={`p-1.5 px-2.5 rounded-xl border flex items-center gap-1 text-xs font-semibold select-none transition-all cursor-pointer z-30 ${
               showConfigSettingsPanel
                 ? 'bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow'
-                : 'bg-white/40 dark:bg-white/5 backdrop-blur border-zinc-200/50 dark:border-white/10 text-zinc-600 dark:text-zinc-350 hover:border-zinc-400'
+                : 'card-glass-panel border text-zinc-600 dark:text-zinc-350 hover:border-zinc-400'
             }`}
           >
             <Settings2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Preferences</span>
+            <span className="hidden sm:inline">Quick</span>
             <ChevronDown className={`w-3 h-3 transition-transform ${showConfigSettingsPanel ? 'rotate-180' : ''}`} />
-          </button>
-
-          {/* Core Dark Mode Toggle */}
-          <button
-            id="global-theme-toggle"
-            onClick={() => setDarkMode(!darkMode)}
-            className="p-2 rounded-xl bg-white/40 dark:bg-white/5 backdrop-blur border border-zinc-200/50 dark:border-white/10 text-zinc-650 dark:text-zinc-350 hover:text-zinc-900 dark:hover:text-amber-300 hover:scale-[1.03] active:scale-[0.98] transition-all cursor-pointer z-30"
-            title={darkMode ? "Switch to Light Theme" : "Switch to Dark Theme"}
-          >
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
           </button>
         </div>
       </header>
@@ -395,18 +588,42 @@ export default function App() {
               </div>
             </div>
 
-            {/* Column 2: Dashboard Themes */}
+            {/* Column 2: Dashboard Themes & Wallpaper */}
             <div>
               <p className="text-[11px] font-bold font-mono uppercase tracking-wider text-zinc-400 mb-2.5">
-                Dashboard Canvas Background
+                Wallpaper & Frosted Blur
               </p>
-              <div id="settings-canvas-styles" className="p-3 rounded-2xl bg-black border border-white/10 flex items-center justify-between shadow-sm">
+              <button
+                id="open-wallpaper-settings-quick"
+                onClick={() => {
+                  setShowConfigSettingsPanel(false);
+                  setIsGeneralSettingsOpen(true);
+                }}
+                className="w-full p-3 rounded-2xl card-glass-panel border flex items-center justify-between shadow-sm hover:border-indigo-400/50 transition-all cursor-pointer group text-left"
+              >
                 <div className="flex items-center gap-2.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
-                  <span className="text-xs font-semibold text-zinc-200">Pitch Black (Permanent Default)</span>
+                  <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/20 bg-black shrink-0">
+                    {currentWallpaper.type === 'solid' ? (
+                      <div className="w-full h-full" style={{ backgroundColor: currentWallpaper.value }} />
+                    ) : currentWallpaper.type === 'gradient' ? (
+                      <div className="w-full h-full" style={{ background: currentWallpaper.value }} />
+                    ) : (
+                      <img src={currentWallpaper.value} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="block text-xs font-semibold text-zinc-200 group-hover:text-white truncate max-w-[130px]">
+                      {currentWallpaper.name}
+                    </span>
+                    <span className="block text-[10px] text-indigo-400 font-mono">
+                      {currentGlass.transparency}% Glass • {currentGlass.blur}
+                    </span>
+                  </div>
                 </div>
-                <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Locked</span>
-              </div>
+                <span className="text-[10px] font-mono font-bold text-indigo-400 bg-indigo-500/10 px-2 py-1 rounded-md border border-indigo-500/20 group-hover:bg-indigo-500/20">
+                  Change
+                </span>
+              </button>
 
               {/* Accent Color Palettes */}
               <p className="text-[11px] font-bold font-mono uppercase tracking-wider text-zinc-451 dark:text-zinc-400 mt-4 mb-2">
@@ -445,7 +662,7 @@ export default function App() {
               <div className="space-y-2">
                 <button
                   id="reset-raw-data-btn"
-                  onClick={resetAllToDefaults}
+                  onClick={handleMasterReset}
                   className="w-full flex items-center gap-1.5 justify-center py-2 px-3 bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-650 dark:text-red-400 border border-red-200 dark:border-red-900 text-xs font-semibold rounded-xl transition-all cursor-pointer"
                 >
                   <RotateCcw className="w-3.5 h-3.5" />
@@ -465,10 +682,12 @@ export default function App() {
         {/* Row A: Big Digital Clock & Display */}
         {widgets.clock && (
           <section id="banner-clock-section" className="text-center mb-8 select-none">
-            <div className="font-display font-black text-6xl tracking-tighter text-zinc-900 dark:text-zinc-50 flex justify-center items-baseline gap-1.5">
-              <span>{time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}</span>
+            <div className="font-display font-black text-6xl tracking-tighter flex justify-center items-baseline gap-1.5">
+              <span className="clock-time-inverse font-mono tracking-tight drop-shadow-md">
+                {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+              </span>
             </div>
-            <p className="text-xs font-mono tracking-widest uppercase font-semibold text-zinc-450 dark:text-zinc-400 mt-1">
+            <p className="text-xs font-mono tracking-widest uppercase font-semibold clock-time-inverse opacity-90 mt-1.5">
               {time.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
             </p>
           </section>
@@ -498,10 +717,10 @@ export default function App() {
         )}
 
         {/* Row D: Dynamic Bento-inspired multi-column Widget grid */}
-        <section id="bento-widgets-section" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <section id="bento-widgets-section" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {/* Bento Slot 1: Live geocoded Open-Meteo Weather widget */}
           {widgets.weather && (
-            <div id="weather-bento-card" className="lg:col-span-1">
+            <div id="weather-bento-card" className="lg:col-span-1 h-full flex flex-col">
               <WeatherWidget 
                 settings={settings}
                 onChangeSettings={(newS) => setSettings(newS)}
@@ -511,7 +730,7 @@ export default function App() {
 
           {/* Bento Slot 2: Multi-pages Personal drafting Journal */}
           {widgets.notes && (
-            <div id="notes-bento-card" className="lg:col-span-1">
+            <div id="notes-bento-card" className="lg:col-span-1 h-full flex flex-col">
               <PersonalNotesWidget 
                 notes={notes}
                 onAddNote={handleAddNote}
@@ -523,11 +742,17 @@ export default function App() {
 
           {/* Bento Slot 3: Bookmarks categorization Manager */}
           {widgets.bookmarks && (
-            <div id="bookmarks-bento-card" className="lg:col-span-1 md:col-span-2">
+            <div id="bookmarks-bento-card" className="lg:col-span-1 md:col-span-2 h-full flex flex-col">
               <BookmarksManager 
                 bookmarks={bookmarks}
                 onAddBookmark={handleAddBookmark}
                 onDeleteBookmark={handleDeleteBookmark}
+                onDeleteMultipleBookmarks={handleDeleteMultipleBookmarks}
+                onDeleteAllBookmarks={handleDeleteAllBookmarks}
+                onRenameCategory={handleRenameCategory}
+                onRenameFolder={handleRenameFolder}
+                onDeleteFolder={handleDeleteFolder}
+                onImportBookmarks={handleImportBookmarks}
               />
             </div>
           )}
@@ -538,6 +763,26 @@ export default function App() {
       <HelpOverlays 
         onFocusSearch={() => setSearchFocused(true)}
         onToggleDarkMode={() => setDarkMode(prev => !prev)}
+      />
+
+      {/* General Settings Dialog for Whole Page & Wallpaper Customization */}
+      <GeneralSettingsModal 
+        isOpen={isGeneralSettingsOpen}
+        onClose={() => setIsGeneralSettingsOpen(false)}
+        settings={settings}
+        onUpdateSettings={(newSettings) => setSettings(newSettings)}
+        widgets={widgets}
+        onToggleWidget={toggleWidget}
+        darkMode={darkMode}
+        onToggleDarkMode={() => setDarkMode(prev => !prev)}
+        onResetDefaults={handleMasterReset}
+        onMasterReset={handleMasterReset}
+        onResetBookmarks={handleResetBookmarks}
+        onClearAllBookmarks={handleClearAllBookmarks}
+        onResetNotes={handleResetNotes}
+        onResetShortcuts={handleResetShortcuts}
+        onResetAppearance={handleResetAppearance}
+        onResetWidgets={handleResetWidgets}
       />
     </div>
   );

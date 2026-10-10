@@ -33,6 +33,22 @@ html, body {
                 inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
   }
 
+  .card-glass-panel {
+    background-color: var(--card-glass-bg-light, rgba(255, 255, 255, 0.35));
+    backdrop-filter: var(--card-glass-blur, blur(32px));
+    -webkit-backdrop-filter: var(--card-glass-blur, blur(32px));
+    border-color: var(--card-glass-border-light, rgba(255, 255, 255, 0.4));
+    box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.08);
+  }
+
+  .dark .card-glass-panel {
+    background-color: var(--card-glass-bg-dark, rgba(0, 0, 0, 0.35));
+    backdrop-filter: var(--card-glass-blur, blur(32px));
+    -webkit-backdrop-filter: var(--card-glass-blur, blur(32px));
+    border-color: var(--card-glass-border, rgba(255, 255, 255, 0.14));
+    box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.35);
+  }
+
   .glass-input {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -55,6 +71,13 @@ html, body {
     background: rgba(255, 255, 255, 0.8);
     border-color: rgba(99, 102, 241, 0.4);
     box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+  }
+
+  /* High-legibility background inverse difference clock text */
+  .clock-time-inverse {
+    mix-blend-mode: difference;
+    color: #ffffff;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.4));
   }
 
   /* Thin minimalist custom scrollbars */

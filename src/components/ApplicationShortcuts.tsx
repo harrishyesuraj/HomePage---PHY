@@ -146,16 +146,15 @@ export default function ApplicationShortcuts({
 
   // Reset popular apps back to default
   const handleResetPopularApps = () => {
-    if (confirm('Reset Popular Web Apps to the default list?')) {
-      setPopularApps(DEFAULT_POPULAR_APPS);
-      setEditingPopularAppId(null);
-      setTitle('');
-      setUrl('');
-      setFeedbackMessage('Popular Web Apps reset to default');
-    }
+    setPopularApps(DEFAULT_POPULAR_APPS);
+    localStorage.setItem('homepage_popular_apps_catalog', JSON.stringify(DEFAULT_POPULAR_APPS));
+    setEditingPopularAppId(null);
+    setTitle('');
+    setUrl('');
+    setFeedbackMessage('Popular Web Apps reset to default');
   };
 
-  // Pin / Add from catalog to main Google Apps tray panel
+  // Pin / Add from catalog to main Applications tray panel
   const handlePinToPanel = (app: { id: string; name: string; url: string }, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -167,7 +166,7 @@ export default function ApplicationShortcuts({
       iconName: app.id,
       color: 'transparent'
     });
-    setFeedbackMessage(`Added ${app.name} to Google Apps tray!`);
+    setFeedbackMessage(`Added ${app.name} to Applications tray!`);
   };
 
   // Handle Form Submit: Add or Modify
@@ -214,14 +213,14 @@ export default function ApplicationShortcuts({
       }
       setActiveCatalogTab('popular');
     } else {
-      // Add directly to main Google Apps panel
+      // Add directly to main Applications tray
       onAddShortcut({
         title: appTitle,
         url: destUrl,
         iconName: detectedKey || 'custom',
         color: 'transparent'
       });
-      setFeedbackMessage(`Added ${appTitle} to Google Apps panel!`);
+      setFeedbackMessage(`Added ${appTitle} to Applications tray!`);
     }
 
     setTitle('');
@@ -243,14 +242,14 @@ export default function ApplicationShortcuts({
   return (
     <div 
       id="shortcuts-widget-card" 
-      className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-zinc-200/50 dark:border-white/10 rounded-3xl p-5 shadow-lg transition-all duration-300 hover:shadow-xl hover:border-zinc-300/50 dark:hover:border-white/15"
+      className="card-glass-panel border rounded-3xl p-5 shadow-lg transition-all duration-300 hover:shadow-2xl hover:border-white/30"
     >
-      {/* Header for Google Apps */}
+      {/* Header for Applications */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 text-zinc-400">
           <GoogleWaffleLogo className="w-4 h-4 text-zinc-300" />
           <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-300 font-sans">
-            Google Apps
+            Applications
           </h3>
           {feedbackMessage && (
             <span className="text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full animate-fade-in">
@@ -263,15 +262,16 @@ export default function ApplicationShortcuts({
           <button
             id="shortcuts-manage-toggle"
             onClick={() => {
-              setIsConfiguring(!isConfiguring);
-              setIsAdding(false);
+              const nextState = !isConfiguring;
+              setIsConfiguring(nextState);
+              setIsAdding(nextState);
             }}
             className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
               isConfiguring 
                 ? 'bg-zinc-950 dark:bg-zinc-100 text-white dark:text-zinc-950 border-transparent shadow' 
                 : 'bg-white/60 dark:bg-white/5 text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border-zinc-200/40 dark:border-white/5'
             }`}
-            title="Manage Apps"
+            title="Manage Applications & Tray"
           >
             <Settings className="w-3.5 h-3.5" />
           </button>
@@ -380,14 +380,31 @@ export default function ApplicationShortcuts({
                     popularApps.map(app => (
                       <div
                         key={app.id}
-                        className={`relative group/pop flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center ${
+                        className={`relative group/pop flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-all text-center cursor-pointer ${
                           editingPopularAppId === app.id
                             ? 'bg-indigo-500/20 border-indigo-400'
-                            : 'border-transparent hover:border-white/20 hover:bg-white/10'
+                            : 'border-transparent hover:border-emerald-500/30 hover:bg-white/10'
                         }`}
+                        onClick={() => handlePinToPanel(app)}
+                        title={`Click to put ${app.name} into Applications tray`}
                       >
+                        {/* External Webpage Link (explicit click only) */}
+                        <a
+                          href={app.url}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="absolute top-1 left-1 opacity-0 group-hover/pop:opacity-100 p-1 rounded-md bg-zinc-800 text-zinc-400 hover:text-white transition-opacity cursor-pointer shadow z-20"
+                          title={`Open ${app.name} website in new tab`}
+                        >
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
+
                         {/* Hover Action Badges: Modify & Remove */}
-                        <div className="absolute top-1 right-1 opacity-0 group-hover/pop:opacity-100 flex items-center gap-1 transition-opacity z-20">
+                        <div 
+                          className="absolute top-1 right-1 opacity-0 group-hover/pop:opacity-100 flex items-center gap-1 transition-opacity z-20"
+                          onClick={(e) => e.stopPropagation()}
+                        >
                           <button
                             type="button"
                             onClick={(e) => handleStartEditPopularApp(app, e)}
@@ -406,30 +423,24 @@ export default function ApplicationShortcuts({
                           </button>
                         </div>
 
-                        {/* Quick Pin to Google Apps Panel */}
-                        <button
-                          type="button"
-                          onClick={(e) => handlePinToPanel(app, e)}
-                          className="absolute bottom-1 right-1 opacity-0 group-hover/pop:opacity-100 p-1 rounded-md bg-zinc-800 text-zinc-300 hover:text-emerald-400 hover:bg-zinc-700 transition-opacity cursor-pointer shadow z-20"
-                          title={`Pin ${app.name} to Google Apps panel`}
+                        {/* Quick Pin Badge in corner */}
+                        <div
+                          className="absolute bottom-1 right-1 opacity-0 group-hover/pop:opacity-100 p-1 rounded-md bg-emerald-950/80 text-emerald-400 border border-emerald-500/30 transition-opacity shadow z-20 flex items-center gap-0.5 text-[9px] font-mono"
+                          title={`Add to Applications tray`}
                         >
-                          <Pin className="w-2.5 h-2.5" />
-                        </button>
+                          <Plus className="w-2.5 h-2.5" />
+                          <span>Tray</span>
+                        </div>
 
-                        <a
-                          href={app.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="flex flex-col items-center gap-1.5 w-full cursor-pointer"
-                          title={`Open ${app.name}`}
-                        >
+                        {/* App Icon and Title Button - Sets into tray on click */}
+                        <div className="flex flex-col items-center gap-1.5 w-full">
                           <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/[0.04] group-hover/pop:scale-105 transition-transform">
                             <GoogleAppImage name={app.id} title={app.name} url={app.url} className="w-7 h-7" />
                           </div>
                           <span className="text-[11px] font-normal text-zinc-300 group-hover/pop:text-white truncate w-full">
                             {app.name}
                           </span>
-                        </a>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -617,7 +628,7 @@ export default function ApplicationShortcuts({
 
         {shortcuts.length === 0 && (
           <div className="col-span-full py-6 text-center text-xs text-zinc-400 font-mono">
-            No apps configured in Google Apps. Click the settings gear icon above.
+            No applications configured in tray. Click the settings gear icon above.
           </div>
         )}
       </div>

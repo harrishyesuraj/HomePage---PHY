@@ -139,12 +139,17 @@ export function TranslateLogo({ className = "w-8 h-8" }: { className?: string })
   );
 }
 
-export function AccountLogo({ className = "w-8 h-8" }: { className?: string }) {
+export function AccountLogo({ className = "w-10 h-10" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={className} fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="24" cy="24" r="21" fill="#1A73E8" />
-      <circle cx="24" cy="18" r="8" fill="#FFFFFF" />
-      <path d="M12 38C12 31.5 17.5 28 24 28C30.5 28 36 31.5 36 38" fill="#FFFFFF" />
+    <svg viewBox="0 0 140 46" className={`${className} object-contain`} fill="none" xmlns="http://www.w3.org/2000/svg">
+      <text x="6" y="34" fontFamily="system-ui, -apple-system, 'Product Sans', Roboto, sans-serif" fontWeight="700" fontSize="34" letterSpacing="-1">
+        <tspan fill="#4285F4">G</tspan>
+        <tspan fill="#EA4335">o</tspan>
+        <tspan fill="#FBBC05">o</tspan>
+        <tspan fill="#4285F4">g</tspan>
+        <tspan fill="#34A853">l</tspan>
+        <tspan fill="#EA4335">e</tspan>
+      </text>
     </svg>
   );
 }
@@ -406,6 +411,13 @@ export function GoogleAppImage({
     ? `https://icons.duckduckgo.com/ip3/${domain}.ico` 
     : '';
 
+  // Account shortcut: render pristine Google wordmark vector with guaranteed zero clipping
+  if (key === 'account') {
+    return (
+      <AccountLogo className="w-11 h-6 object-contain select-none pointer-events-none transition-transform duration-200 group-hover:scale-105" />
+    );
+  }
+
   // 1. Try Known Brand High-Res Image (or Favicon if not in static dictionary)
   if (stage === 'primary') {
     const srcToTry = knownBrandUrl || faviconUrl;
@@ -415,7 +427,7 @@ export function GoogleAppImage({
           src={srcToTry}
           alt={title || name}
           className={`${className} object-contain select-none pointer-events-none transition-transform duration-200 group-hover:scale-105 ${
-            key === 'account' ? 'rounded-full object-cover p-1' : ''
+            key === 'account' ? 'w-full max-w-[48px] max-h-8 object-contain px-0.5' : ''
           }`}
           loading="eager"
           decoding="async"

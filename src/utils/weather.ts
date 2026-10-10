@@ -222,3 +222,68 @@ export async function fetchLiveWeather(cityName: string): Promise<WeatherData> {
     };
   }
 }
+
+export async function fetchLiveWeatherByCoords(latitude: number, longitude: number): Promise<WeatherData> {
+  let cityName = "Your Location";
+  let countryName = "";
+
+  // 1. Reverse Geocode lookup
+  try {
+    const geoRes = await fetch(
+      `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`
+    );
+    if (geoRes.ok) {
+      const geo = await geoRes.json();
+      cityName = geo.city || geo.locality || geo.principalSubdivision || "Current Location";
+      countryName = geo.countryName || "";
+    }
+  } catch (e) {
+    console.warn("Reverse geocode failed, using coordinates fallback", e);
+  }
+
+  // 2. Open-Meteo live weather forecast
+  const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=auto`;
+  const weatherRes = await fetch(weatherUrl);
+
+  if (!weatherRes.ok) {
+    throw new Error("Unable to retrieve weather for current location");
+  }
+
+  const weatherData = await weatherRes.json();
+  const current = weatherData.current;
+  const daily = weatherData.daily;
+  const mappedCurrent = mapWMOCode(current.weather_code);
+
+  const forecast: Array<{ day: string; temp: number; condition: string }> = [];
+  if (daily && daily.time) {
+    for (let i = 1; i < Math.min(6, daily.time.length); i++) {
+      const dateStr = daily.time[i];
+      const date = new Date(dateStr);
+      const dayName = DAYS[date.getUTCDay()] || "Day";
+      const tempMax = daily.temperature_2m_max[i];
+      const tempMin = daily.temperature_2m_min[i];
+      const avgTemp = Math.round((tempMax + tempMin) / 2);
+      const mappedForecast = mapWMOCode(daily.weather_code[i]);
+
+      forecast.push({
+        day: dayName,
+        temp: avgTemp,
+        condition: mappedForecast.condition
+      });
+    }
+  }
+
+  return {
+    city: cityName,
+    country: countryName,
+    temp: Math.round(current.temperature_2m),
+    condition: mappedCurrent.condition,
+    description: mappedCurrent.description,
+    humidity: Math.round(current.relative_humidity_2m),
+    windSpeed: Math.round(current.wind_speed_10m),
+    tempMax: Math.round(daily?.temperature_2m_max[0] ?? current.temperature_2m),
+    tempMin: Math.round(daily?.temperature_2m_min[0] ?? current.temperature_2m),
+    forecast: forecast.length > 0 ? forecast : DEFAULT_WEATHER.forecast
+  };
+}
+

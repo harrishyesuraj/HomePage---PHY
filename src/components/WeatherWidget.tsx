@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Cloud, Sun, CloudRain, Snowflake, CloudLightning, Wind, Droplets, Loader2, Search, MapPin
+  Cloud, Sun, CloudRain, Snowflake, CloudLightning, Wind, Droplets, Loader2, 
+  Search, MapPin, Navigation, RefreshCw, Check, ArrowRightLeft
 } from 'lucide-react';
 import { WeatherData, AppSettings } from '../types';
-import { fetchLiveWeather } from '../utils/weather';
+import { fetchLiveWeather, fetchLiveWeatherByCoords } from '../utils/weather';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface WeatherWidgetProps {
@@ -29,24 +30,32 @@ const FORECAST_ICONS: Record<string, React.ReactNode> = {
   windy: <Wind className="w-5 h-5 text-slate-400" />
 };
 
+const POPULAR_CITIES = ['New York', 'London', 'Tokyo', 'Paris', 'San Francisco', 'Sydney', 'Berlin'];
+
 export default function WeatherWidget({ settings, onChangeSettings }: WeatherWidgetProps) {
   const [cityName, setCityName] = useState(() => {
     return localStorage.getItem('last_weather_city') || 'San Francisco';
   });
+  const [isLiveLocation, setIsLiveLocation] = useState<boolean>(() => {
+    return localStorage.getItem('weather_mode') === 'live';
+  });
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [geoLoading, setGeoLoading] = useState(false);
   const [errorInput, setErrorInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
+  const [isChangingLocation, setIsChangingLocation] = useState(false);
 
-  const loadWeather = async (city: string) => {
+  // Load weather by city name
+  const loadWeatherCity = async (city: string) => {
     setLoading(true);
     setErrorInput('');
     try {
       const data = await fetchLiveWeather(city);
       setWeather(data);
-      // Only persist if search succeeded
       setCityName(data.city);
+      setIsLiveLocation(false);
+      localStorage.setItem('weather_mode', 'city');
       localStorage.setItem('last_weather_city', data.city);
     } catch (err: any) {
       setErrorInput(err.message || 'Error fetching weather');
@@ -55,20 +64,67 @@ export default function WeatherWidget({ settings, onChangeSettings }: WeatherWid
     }
   };
 
+  // Load weather using device's live GPS coordinates
+  const loadLiveLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorInput('Geolocation is not supported by your browser.');
+      return;
+    }
+
+    setGeoLoading(true);
+    setErrorInput('');
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const data = await fetchLiveWeatherByCoords(latitude, longitude);
+          setWeather(data);
+          setIsLiveLocation(true);
+          localStorage.setItem('weather_mode', 'live');
+          localStorage.setItem('last_weather_city', data.city);
+          setIsChangingLocation(false);
+        } catch (err: any) {
+          setErrorInput(err.message || 'Failed to fetch live weather forecast');
+          loadWeatherCity(cityName);
+        } finally {
+          setGeoLoading(false);
+        }
+      },
+      (geoError) => {
+        console.warn('Geolocation error:', geoError);
+        setGeoLoading(false);
+        setErrorInput(
+          geoError.code === 1 
+            ? 'Location access denied. You can change location by entering a city.' 
+            : 'Unable to retrieve location. Using saved city.'
+        );
+        loadWeatherCity(cityName);
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
+
+  // On initial mount
   useEffect(() => {
-    loadWeather(cityName);
+    if (isLiveLocation) {
+      loadLiveLocation();
+    } else {
+      loadWeatherCity(cityName);
+    }
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    loadWeather(searchQuery);
+    loadWeatherCity(searchQuery.trim());
     setSearchQuery('');
-    setIsSearching(false);
+    setIsChangingLocation(false);
   };
 
-  const getCelsius = (tempC: number) => {
-    return tempC;
+  const handleQuickCitySelect = (city: string) => {
+    loadWeatherCity(city);
+    setIsChangingLocation(false);
   };
 
   const getFahrenheit = (tempC: number) => {
@@ -85,104 +141,180 @@ export default function WeatherWidget({ settings, onChangeSettings }: WeatherWid
   return (
     <div 
       id="weather-widget-card" 
-      className="bg-white/40 dark:bg-white/5 backdrop-blur-xl border border-zinc-200/50 dark:border-white/10 rounded-3xl p-5 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl hover:border-zinc-300/50 dark:hover:border-white/15"
+      className="card-glass-panel border rounded-3xl p-5 shadow-lg overflow-hidden transition-all duration-300 hover:shadow-2xl hover:border-white/30 h-full min-h-[460px] flex flex-col justify-between"
     >
+      {/* Header bar */}
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-1.5 text-zinc-450 dark:text-zinc-450">
-          <MapPin className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
-          <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-500 dark:text-zinc-400 font-sans">
-            Weather Info
+        <div className="flex items-center gap-1.5 text-zinc-400">
+          <MapPin className="w-4 h-4 text-zinc-400" />
+          <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-400 font-sans">
+            Weather Forecast
           </h3>
+          {isLiveLocation ? (
+            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+              <Navigation className="w-2.5 h-2.5 animate-pulse" />
+              Live Location
+            </span>
+          ) : (
+            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">
+              Custom Location
+            </span>
+          )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {/* Unit Switcher */}
           <button
             id="temp-unit-toggle"
             onClick={() => onChangeSettings({ ...settings, useCelsius: !settings.useCelsius })}
-            className="text-[10px] font-mono px-2 py-1 rounded bg-white/65 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-white/85 dark:hover:bg-white/10 hover:text-zinc-800 dark:hover:text-zinc-100 border border-zinc-200/40 dark:border-white/10 transition-colors cursor-pointer"
+            className="text-[10px] font-mono px-2 py-1 rounded-lg bg-white/60 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-white/80 dark:hover:bg-white/10 border border-zinc-200/40 dark:border-white/10 transition-colors cursor-pointer"
             title="Switch Temperature Unit"
           >
             {settings.useCelsius ? '→ °F' : '→ °C'}
           </button>
 
-          {/* Search Button Toggle */}
+          {/* Live GPS button */}
           <button
-            id="weather-search-toggle"
-            onClick={() => setIsSearching(!isSearching)}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-white/60 dark:hover:bg-white/10 transition-colors cursor-pointer"
-            title="Search Location"
+            id="weather-live-location-btn"
+            onClick={loadLiveLocation}
+            disabled={geoLoading}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+              isLiveLocation
+                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                : 'bg-white/60 dark:bg-white/5 text-zinc-400 hover:text-zinc-200 border-zinc-200/40 dark:border-white/10'
+            }`}
+            title="Use Live Location Cast"
           >
-            <Search className="w-3.5 h-3.5" />
+            {geoLoading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-400" />
+            ) : (
+              <Navigation className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Change Location Button */}
+          <button
+            id="weather-change-location-btn"
+            onClick={() => setIsChangingLocation(!isChangingLocation)}
+            className={`px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer flex items-center gap-1 ${
+              isChangingLocation
+                ? 'bg-indigo-600 text-white border-indigo-500'
+                : 'bg-white/60 dark:bg-white/5 text-zinc-400 hover:text-zinc-200 border-zinc-200/40 dark:border-white/10'
+            }`}
+            title="Change Location"
+          >
+            <ArrowRightLeft className="w-3 h-3" />
+            <span>Change</span>
           </button>
         </div>
       </div>
 
-      <AnimatePresence mode="wait">
-        {isSearching && (
-          <motion.form 
-            id="weather-search-form"
+      {/* Change Location Drawer */}
+      <AnimatePresence>
+        {isChangingLocation && (
+          <motion.div
+            id="weather-location-changer-panel"
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            onSubmit={handleSearchSubmit}
-            className="mb-4 overflow-hidden"
+            className="mb-4 p-3 bg-white/40 dark:bg-black/30 border border-zinc-200/50 dark:border-white/10 rounded-2xl overflow-hidden shadow-inner"
           >
-            <div className="flex gap-2">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-semibold text-zinc-300">
+                Change Location
+              </span>
+              <button
+                type="button"
+                onClick={loadLiveLocation}
+                disabled={geoLoading}
+                className="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-mono cursor-pointer"
+              >
+                <Navigation className="w-3 h-3" />
+                <span>Detect Live GPS</span>
+              </button>
+            </div>
+
+            <form onSubmit={handleSearchSubmit} className="flex gap-2 mb-2.5">
               <input
                 id="weather-search-input"
                 type="text"
                 autoFocus
-                placeholder="Enter city name..."
+                placeholder="Enter city (e.g. Chicago, London, Berlin)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 text-xs px-3 py-2 bg-white/40 dark:bg-white/5 border border-zinc-200/50 dark:border-white/10 rounded-xl text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50 focus:ring-2 focus:ring-indigo-500/10"
+                className="flex-1 text-xs px-3 py-2 bg-white/60 dark:bg-white/5 border border-zinc-200/50 dark:border-white/10 rounded-xl text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:border-indigo-500/50"
               />
               <button
                 id="weather-search-submit-btn"
                 type="submit"
-                className="px-3 py-1.5 bg-indigo-500 dark:bg-indigo-600 text-white rounded-xl text-xs font-medium hover:bg-indigo-600 dark:hover:bg-indigo-550 transition-colors cursor-pointer"
+                className="px-3.5 py-1.5 bg-indigo-500 hover:bg-indigo-600 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-colors cursor-pointer"
               >
-                Go
+                Set
               </button>
+            </form>
+
+            {/* Popular quick-pick cities */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] text-zinc-500 font-mono">Popular:</span>
+              {POPULAR_CITIES.map(city => (
+                <button
+                  key={city}
+                  type="button"
+                  onClick={() => handleQuickCitySelect(city)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md border transition-colors cursor-pointer ${
+                    cityName.toLowerCase() === city.toLowerCase() && !isLiveLocation
+                      ? 'bg-indigo-600/30 text-indigo-300 border-indigo-500/50'
+                      : 'bg-white/5 hover:bg-white/15 text-zinc-400 hover:text-zinc-200 border-white/5'
+                  }`}
+                >
+                  {city}
+                </button>
+              ))}
             </div>
+
             {errorInput && (
-              <p className="text-[10px] text-red-500 mt-1">{errorInput}</p>
+              <p className="text-[10px] text-red-400 mt-2 font-mono">{errorInput}</p>
             )}
-          </motion.form>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {loading ? (
+      {/* Main Forecast Body */}
+      {loading || geoLoading ? (
         <div className="flex flex-col items-center justify-center py-8">
           <Loader2 className="w-6 h-6 text-indigo-500 animate-spin mb-2" />
-          <span className="text-[10px] font-mono text-zinc-400">Loading forecast...</span>
+          <span className="text-[10px] font-mono text-zinc-400">
+            {geoLoading ? 'Detecting live location & forecast...' : 'Loading weather forecast...'}
+          </span>
         </div>
       ) : weather ? (
         <div id="weather-details-section">
           {/* Main Weather Details */}
           <div className="flex items-center gap-4 justify-between mb-5">
             <div>
-              <div className="flex items-baseline gap-1">
+              <div className="flex items-baseline gap-1.5">
                 <span className="text-3xl font-display font-medium tracking-tight text-zinc-800 dark:text-zinc-100">
                   {weather.city}
                 </span>
                 {weather.country && (
-                  <span className="text-xs font-mono text-zinc-400 dark:text-zinc-505 font-medium">
+                  <span className="text-xs font-mono text-zinc-400 font-medium">
                     {weather.country}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium capitalize mt-0.5">
-                {weather.description}
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium capitalize mt-0.5 flex items-center gap-1.5">
+                <span>{weather.description}</span>
+                {isLiveLocation && (
+                  <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                )}
               </p>
               <div className="flex gap-3 mt-2 text-[10px] text-zinc-400 dark:text-zinc-500 font-mono">
                 <span className="flex items-center gap-1">
-                  <Wind className="w-3 h-3 text-zinc-405" />
+                  <Wind className="w-3 h-3 text-zinc-400" />
                   {weather.windSpeed} km/h
                 </span>
                 <span className="flex items-center gap-1">
-                  <Droplets className="w-3 h-3 text-sky-400 dark:text-sky-400" />
+                  <Droplets className="w-3 h-3 text-sky-400" />
                   {weather.humidity}%
                 </span>
               </div>
@@ -223,8 +355,8 @@ export default function WeatherWidget({ settings, onChangeSettings }: WeatherWid
           </div>
         </div>
       ) : (
-        <div className="text-center py-6 text-xs text-zinc-405">
-          Weather service unavailable.
+        <div className="text-center py-6 text-xs text-zinc-400">
+          Weather service unavailable. Click Change to choose a city.
         </div>
       )}
     </div>

@@ -40,6 +40,7 @@ export default function HelpOverlays({ onFocusSearch, onToggleDarkMode }: HelpOv
 
   const shortcutKeys = [
     { key: '/', alternative: 'S', desc: 'Focus Google Search box' },
+    { key: ',', alternative: '', desc: 'Open General Settings & Wallpaper' },
     { key: 'D', alternative: '', desc: 'Toggle Dark / Light color mode' },
     { key: '?', alternative: 'Esc', desc: 'Toggle Keyboard Help Sheet' },
     { key: 'Tab', alternative: '', desc: 'Cycle focus across interactive cards' },
