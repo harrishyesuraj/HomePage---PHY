@@ -1,0 +1,6 @@
+{
+  "name": "Browser Dashboard",
+  "description": "A customizable, responsive minimalist home dashboard for your browser featuring Google search, weather widget, bookmarks, notes, application shortcuts, keyboard navigation, and transitions.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
