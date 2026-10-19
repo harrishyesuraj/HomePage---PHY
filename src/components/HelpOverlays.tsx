@@ -49,16 +49,6 @@ export default function HelpOverlays({ onFocusSearch, onToggleDarkMode }: HelpOv
 
   return (
     <>
-      {/* Absolute Bottom Help Floating Button */}
-      <button
-        id="shortcuts-help-center-trigger-btn"
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-40 bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 border border-zinc-200 dark:border-zinc-850 p-2.5 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center gap-1.5 cursor-pointer text-xs font-semibold"
-        title="Show Keyboard Shortcuts"
-      >
-        <Keyboard className="w-4 h-4" />
-        <span className="sr-only sm:not-sr-only">Keyboard Shortcuts</span>
-      </button>
 
       {/* Modal Dialog */}
       <AnimatePresence>

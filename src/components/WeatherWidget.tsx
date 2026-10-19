@@ -150,29 +150,9 @@ export default function WeatherWidget({ settings, onChangeSettings }: WeatherWid
           <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-400 font-sans">
             Weather Forecast
           </h3>
-          {isLiveLocation ? (
-            <span className="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-              <Navigation className="w-2.5 h-2.5 animate-pulse" />
-              Live Location
-            </span>
-          ) : (
-            <span className="text-[10px] font-mono text-zinc-400 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full">
-              Custom Location
-            </span>
-          )}
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Unit Switcher */}
-          <button
-            id="temp-unit-toggle"
-            onClick={() => onChangeSettings({ ...settings, useCelsius: !settings.useCelsius })}
-            className="text-[10px] font-mono px-2 py-1 rounded-lg bg-white/60 dark:bg-white/5 text-zinc-600 dark:text-zinc-300 hover:bg-white/80 dark:hover:bg-white/10 border border-zinc-200/40 dark:border-white/10 transition-colors cursor-pointer"
-            title="Switch Temperature Unit"
-          >
-            {settings.useCelsius ? '→ °F' : '→ °C'}
-          </button>
-
           {/* Live GPS button */}
           <button
             id="weather-live-location-btn"

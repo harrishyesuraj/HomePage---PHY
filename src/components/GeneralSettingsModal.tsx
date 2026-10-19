@@ -23,6 +23,7 @@ interface GeneralSettingsModalProps {
   onClearAllBookmarks?: () => void;
   onResetNotes: () => void;
   onResetShortcuts: () => void;
+  onResetPopularApps?: () => void;
   onResetAppearance: () => void;
   onResetWidgets: () => void;
 }
@@ -42,6 +43,7 @@ export default function GeneralSettingsModal({
   onClearAllBookmarks,
   onResetNotes,
   onResetShortcuts,
+  onResetPopularApps,
   onResetAppearance,
   onResetWidgets,
 }: GeneralSettingsModalProps) {
@@ -355,29 +357,29 @@ export default function GeneralSettingsModal({
             </div>
           </div>
 
-          {/* 3. Shortcuts Tray Reset */}
+          {/* 3. Shortcuts Tray & Popular Web Apps Reset */}
           <div className="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-2.5 flex flex-col justify-between">
             <div>
               <div className="flex items-center gap-2 text-amber-300 text-xs font-bold mb-1">
                 <LayoutGrid className="w-3.5 h-3.5 text-amber-400" />
-                <span>Application Shortcuts</span>
+                <span>Application Shortcuts & Web Apps</span>
               </div>
               <p className="text-[11px] text-zinc-400">
-                Restore Google suite (Gmail, Drive, YouTube, Gemini, Maps) and web apps.
+                Restore Google suite tray apps or reset the popular web applications catalog.
               </p>
             </div>
-            <div className="pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               {confirmAction === 'shortcuts' ? (
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 w-full">
                   <button
                     onClick={() => {
                       onResetShortcuts();
                       setConfirmAction(null);
-                      showFeedback('✓ App shortcuts reset to default!');
+                      showFeedback('✓ Tray shortcuts reset to default!');
                     }}
                     className="px-2.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold flex-1 cursor-pointer"
                   >
-                    Confirm Reset
+                    Confirm Reset Tray
                   </button>
                   <button
                     onClick={() => setConfirmAction(null)}
@@ -391,10 +393,44 @@ export default function GeneralSettingsModal({
                   id="reset-shortcuts-btn"
                   onClick={() => setConfirmAction('shortcuts')}
                   className="px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-200 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                  title="Reset tray shortcuts to default Google suite"
                 >
                   <RotateCcw className="w-3 h-3" />
-                  <span>Reset Shortcuts</span>
+                  <span>Reset Tray Shortcuts</span>
                 </button>
+              )}
+
+              {onResetPopularApps && (
+                confirmAction === 'popular-apps' ? (
+                  <div className="flex items-center gap-1.5 w-full">
+                    <button
+                      onClick={() => {
+                        onResetPopularApps();
+                        setConfirmAction(null);
+                        showFeedback('✓ Popular Web Apps reset to default catalog!');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold flex-1 cursor-pointer"
+                    >
+                      Confirm Reset Apps
+                    </button>
+                    <button
+                      onClick={() => setConfirmAction(null)}
+                      className="px-2 py-1.5 rounded-lg bg-white/10 text-zinc-300 text-[11px] cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    id="reset-popular-apps-btn"
+                    onClick={() => setConfirmAction('popular-apps')}
+                    className="px-2.5 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 border border-indigo-500/40 text-indigo-200 text-[11px] font-semibold transition-all cursor-pointer flex items-center gap-1"
+                    title="Restore default catalog of Popular Web Apps"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    <span>Reset Popular Web Apps</span>
+                  </button>
+                )
               )}
             </div>
           </div>

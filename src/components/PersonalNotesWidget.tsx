@@ -86,20 +86,16 @@ export default function PersonalNotesWidget({
           <h3 className="text-xs font-semibold tracking-wider uppercase text-zinc-400 font-sans">
             Notes & Clipboard
           </h3>
-          <span className="text-[10px] font-mono text-emerald-400/90 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
-            <Check className="w-2.5 h-2.5" />
-            Backend Sync
-          </span>
         </div>
 
         <button
           id="new-note-tab-btn"
           onClick={handleCreateNew}
-          className="p-1 px-2.5 rounded-lg text-xs font-semibold bg-white/60 dark:bg-white/5 border border-zinc-200/45 dark:border-white/5 text-zinc-655 dark:text-zinc-300 hover:bg-white/80 dark:hover:bg-white/10 transition-colors flex items-center gap-1 cursor-pointer"
+          className="p-1.5 rounded-lg text-xs font-semibold bg-white/60 dark:bg-white/5 border border-zinc-200/45 dark:border-white/5 text-zinc-655 dark:text-zinc-300 hover:bg-white/80 dark:hover:bg-white/10 transition-colors flex items-center justify-center cursor-pointer"
           title="Add Note Page"
+          aria-label="Add Note Page"
         >
           <Plus className="w-3.5 h-3.5" />
-          <span>New Page</span>
         </button>
       </div>
 

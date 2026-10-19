@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { 
   Plus, Bookmark, Trash2, Tag, ExternalLink, Filter, FolderPlus, X, 
   Download, Upload, FileUp, Check, AlertCircle, FileText, Folder,
-  ChevronRight, ArrowLeft, CheckSquare, Square, Edit3, AlertTriangle, Layers
+  ChevronRight, ArrowLeft, CheckSquare, Square, Edit3, AlertTriangle, Layers, Settings
 } from 'lucide-react';
 import { Bookmark as BookmarkType } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,6 +17,7 @@ interface BookmarksManagerProps {
   onRenameFolder?: (category: string, oldFolder: string, newFolder: string) => void;
   onDeleteFolder?: (category: string, folder: string) => void;
   onImportBookmarks?: (imported: BookmarkType[]) => void;
+  onOpenSettings?: () => void;
 }
 
 const DEFAULT_CATEGORIES = ['Dev', 'Work', 'Entertainment', 'Social', 'News'];
@@ -40,7 +41,8 @@ export default function BookmarksManager({
   onRenameCategory,
   onRenameFolder,
   onDeleteFolder,
-  onImportBookmarks
+  onImportBookmarks,
+  onOpenSettings
 }: BookmarksManagerProps) {
   // Navigation State
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -516,16 +518,6 @@ export default function BookmarksManager({
             >
               <Upload className="w-3 h-3" />
               <span className="hidden sm:inline">Import</span>
-            </button>
-
-            {/* Delete All Bookmarks Button */}
-            <button
-              id="delete-all-bookmarks-toggle-btn"
-              onClick={() => setShowDeleteAllModal(true)}
-              className="p-1.5 rounded-lg text-zinc-400 hover:text-red-400 hover:bg-red-500/10 border border-zinc-200/40 dark:border-white/5 transition-colors cursor-pointer"
-              title="Delete All Bookmarks"
-            >
-              <Trash2 className="w-3 h-3" />
             </button>
 
             {/* Add Link Button */}

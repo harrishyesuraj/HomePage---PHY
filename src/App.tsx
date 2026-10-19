@@ -301,6 +301,10 @@ export default function App() {
     setShortcuts(prev => [...prev, newShortcut]);
   };
 
+  const handleReorderShortcuts = (reordered: QuickShortcut[]) => {
+    setShortcuts(reordered);
+  };
+
   const handleUpdateShortcut = (id: string, updates: Partial<QuickShortcut>) => {
     setShortcuts(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
   };
@@ -362,6 +366,11 @@ export default function App() {
     localStorage.setItem('homepage_shortcuts_google_v4', 'true');
   };
 
+  const handleResetPopularApps = () => {
+    localStorage.removeItem('homepage_custom_popular_apps_v2');
+    window.dispatchEvent(new Event('reset_popular_apps'));
+  };
+
   const handleResetAppearance = () => {
     setSettings(prev => ({
       ...prev,
@@ -421,6 +430,7 @@ export default function App() {
     localStorage.setItem('homepage_config_settings', JSON.stringify(defaultSettings));
     localStorage.setItem('homepage_dark_mode', 'true');
     localStorage.setItem('homepage_shortcuts_google_v4', 'true');
+    handleResetPopularApps();
 
     fetch('/api/notes', {
       method: 'POST',
@@ -494,47 +504,17 @@ export default function App() {
       </div>
 
       {/* Top Header controls */}
-      <header id="dashboard-navbar-header" className="max-w-7xl w-full mx-auto flex items-center justify-between mb-6 z-30">
-        <div className="flex items-center gap-2">
-          {/* Quick Active Wallpaper Badge */}
-          <button
-            onClick={() => setIsGeneralSettingsOpen(true)}
-            className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl card-glass-panel border text-xs font-medium text-zinc-300 hover:text-white transition-all cursor-pointer hover:border-white/30"
-            title="Click to change wallpaper"
-          >
-            <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="truncate max-w-[140px]">{currentWallpaper.name}</span>
-            <span className="text-[10px] font-mono text-zinc-400 bg-white/10 px-1.5 py-0.2 rounded">
-              {currentGlass.transparency}% Glass
-            </span>
-          </button>
-        </div>
-
+      <header id="dashboard-navbar-header" className="max-w-7xl w-full mx-auto flex items-center justify-end mb-6 z-30">
         <div className="flex items-center gap-2">
           {/* General Settings Button for the Whole Page */}
           <button
             id="general-settings-open-btn"
             onClick={() => setIsGeneralSettingsOpen(true)}
-            className="p-1.5 px-3 rounded-xl card-glass-panel border flex items-center gap-1.5 text-xs font-semibold select-none transition-all cursor-pointer z-30 text-zinc-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:border-white/30"
-            title="Open General Settings: Change Wallpaper, Card Transparency & Blur"
+            className="p-2 rounded-xl card-glass-panel border flex items-center justify-center text-xs font-semibold select-none transition-all cursor-pointer z-30 text-zinc-700 dark:text-zinc-200 hover:text-indigo-600 dark:hover:text-indigo-400 hover:scale-[1.05] active:scale-[0.98] shadow-sm hover:border-white/30"
+            title="General Settings"
+            aria-label="General Settings"
           >
-            <Sliders className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-            <span className="font-sans">General Settings</span>
-          </button>
-
-          {/* Quick Preferences Toggle */}
-          <button
-            id="widgets-config-panel-toggle"
-            onClick={() => setShowConfigSettingsPanel(!showConfigSettingsPanel)}
-            className={`p-1.5 px-2.5 rounded-xl border flex items-center gap-1 text-xs font-semibold select-none transition-all cursor-pointer z-30 ${
-              showConfigSettingsPanel
-                ? 'bg-zinc-800 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent shadow'
-                : 'card-glass-panel border text-zinc-600 dark:text-zinc-350 hover:border-zinc-400'
-            }`}
-          >
-            <Settings2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Quick</span>
-            <ChevronDown className={`w-3 h-3 transition-transform ${showConfigSettingsPanel ? 'rotate-180' : ''}`} />
+            <Sliders className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
           </button>
         </div>
       </header>
@@ -712,6 +692,7 @@ export default function App() {
               onAddShortcut={handleAddShortcut}
               onUpdateShortcut={handleUpdateShortcut}
               onDeleteShortcut={handleDeleteShortcut}
+              onReorderShortcuts={handleReorderShortcuts}
             />
           </section>
         )}
@@ -781,6 +762,7 @@ export default function App() {
         onClearAllBookmarks={handleClearAllBookmarks}
         onResetNotes={handleResetNotes}
         onResetShortcuts={handleResetShortcuts}
+        onResetPopularApps={handleResetPopularApps}
         onResetAppearance={handleResetAppearance}
         onResetWidgets={handleResetWidgets}
       />
